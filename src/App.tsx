@@ -336,8 +336,13 @@ function LoginScreen() {
 
   const handleSignIn = async (role: UserRole) => {
     try {
+      setError(null);
       await signIn(role);
     } catch (err: any) {
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        // Ignore user cancellation
+        return;
+      }
       setError(err.message);
     }
   };
