@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  
+  --color-brand-50: #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-200: #fed7aa;
+  --color-brand-300: #fdba74;
+  --color-brand-400: #fb923c;
+  --color-brand-500: #f97316;
+  --color-brand-600: #ea580c;
+  --color-brand-700: #c2410c;
+  --color-brand-800: #9a3412;
+  --color-brand-900: #7c2d12;
+}
+
+@layer base {
+  body {
+    @apply antialiased bg-[#fdfcfb] text-zinc-900 selection:bg-brand-100 dark:bg-zinc-950 dark:text-zinc-100 dark:selection:bg-brand-900/30;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-sm dark:bg-zinc-900/70 dark:border-zinc-800/50;
+  }
+  
+  .soft-shadow {
+    box-shadow: 0 10px 30px -10px rgba(249, 115, 22, 0.15);
+  }
+
+  .markdown-body {
+    @apply leading-relaxed text-[15px];
+  }
+
+  .markdown-body p {
+    @apply mb-4 last:mb-0;
+  }
+
+  .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+    @apply font-display font-bold mb-3 text-brand-600 dark:text-brand-400;
+  }
+
+  .markdown-body ul {
+    @apply list-disc list-inside mb-4 space-y-1;
+  }
+
+  .markdown-body strong {
+    @apply font-semibold text-zinc-900 dark:text-white;
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+
+.animate-shake {
+  animation: shake 0.2s ease-in-out 0s 2;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-zinc-200 dark:bg-zinc-800 rounded-full hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors;
+}

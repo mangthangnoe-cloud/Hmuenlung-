@@ -1,0 +1,145 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - name: string (required)
+    //   - email: string (required)
+    //   - profilePic: string
+    //   - role: string (admin/user)
+    //   - theme: string (light/dark)
+    //   - notificationsEnabled: bool
+    //   - createdAt: number
+    //
+    // Collection: posts
+    // Document ID: {postId}
+    // Fields:
+    //   - authorId: string (required)
+    //   - authorName: string
+    //   - authorPic: string
+    //   - text: string (required)
+    //   - imageUrl: string
+    //   - tags: list (strings)
+    //   - likesCount: number
+    //   - commentsCount: number
+    //   - createdAt: number
+    //
+    // Collection: posts/{postId}/comments
+    // Document ID: {commentId}
+    // Fields:
+    //   - postId: string
+    //   - userId: string
+    //   - userName: string
+    //   - userPic: string
+    //   - text: string
+    //   - createdAt: number
+    //
+    // Collection: posts/{postId}/likes
+    // Document ID: {userId}
+    //
+    // Collection: users/{userId}/savedPosts
+    // Document ID: {postId}
+    //
+    // Collection: users/{userId}/activity
+    // Document ID: {activityId}
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "mangthangnoe@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isUserAdmin(userId) {
+      return isAdmin() || (exists(/databases/$(database)/documents/users/$(userId)) && 
+             get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin');
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'role']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && (data.email == "" || data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) &&
+             data.role in ['admin', 'user'] &&
+             (!('theme' in data) || data.theme in ['light', 'dark']) &&
+             (!('notificationsEnabled' in data) || data.notificationsEnabled is bool);
+    }
+
+    function isValidPost(data) {
+      return data.keys().hasAll(['authorId', 'text', 'createdAt']) &&
+             data.authorId == request.auth.uid &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 5000 &&
+             data.tags is list && data.tags.size() <= 10 &&
+             (data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() < 1000)) &&
+             (data.authorName is string && data.authorName.size() < 100 || !('authorName' in data)) &&
+             (data.authorPic is string && data.authorPic.size() < 1000 || !('authorPic' in data)) &&
+             (data.likesCount is number || !('likesCount' in data)) &&
+             (data.commentsCount is number || !('commentsCount' in data));
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['postId', 'userId', 'text', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 1000;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      (request.resource.data.role == 'user' || isAdmin());
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      (request.resource.data.role == resource.data.role || isAdmin());
+      
+      match /savedPosts/{postId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /activity/{activityId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidPost(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (isAdmin() && isValidPost(request.resource.data)) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount']))
+      );
+      allow delete: if isAdmin();
+
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && isValidComment(request.resource.data);
+        allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      }
+
+      match /likes/{userId} {
+        allow read: if isAuthenticated();
+        allow write: if isOwner(userId);
+      }
+    }
+  }
+}

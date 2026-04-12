@@ -1,0 +1,5 @@
+{
+  "name": "Nix Daily",
+  "description": "A social platform for sharing photos and thoughts, with admin-only posting and user-only reactions.",
+  "requestFramePermissions": []
+}
