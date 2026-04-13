@@ -65,7 +65,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        (request.auth.token.email == "mangthangnoe@gmail.com" && request.auth.token.email_verified == true);
+        ((request.auth.token.email == "mangthangnoe@gmail.com" || request.auth.token.email == "hmuenlungthang@gmail.com") && request.auth.token.email_verified == true);
     }
 
     function isUserAdmin(userId) {
@@ -86,19 +86,22 @@ service cloud.firestore {
     function isValidPost(data) {
       return data.keys().hasAll(['authorId', 'text', 'createdAt']) &&
              data.authorId == request.auth.uid &&
-             data.text is string && data.text.size() > 0 && data.text.size() < 5000 &&
-             data.tags is list && data.tags.size() <= 10 &&
-             (data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() < 1000)) &&
-             (data.authorName is string && data.authorName.size() < 100 || !('authorName' in data)) &&
-             (data.authorPic is string && data.authorPic.size() < 1000 || !('authorPic' in data)) &&
-             (data.likesCount is number || !('likesCount' in data)) &&
-             (data.commentsCount is number || !('commentsCount' in data));
+             data.text is string && data.text.size() > 0 && data.text.size() < 20000 &&
+             data.tags is list &&
+             (!('imageUrl' in data) || data.imageUrl == null || data.imageUrl is string) &&
+             (!('authorName' in data) || data.authorName == null || data.authorName is string) &&
+             (!('authorPic' in data) || data.authorPic == null || data.authorPic is string) &&
+             (!('likesCount' in data) || data.likesCount is number) &&
+             (!('commentsCount' in data) || data.commentsCount is number) &&
+             (!('status' in data) || data.status in ['active', 'inactive', 'deleted']);
     }
 
     function isValidComment(data) {
       return data.keys().hasAll(['postId', 'userId', 'text', 'createdAt']) &&
              data.userId == request.auth.uid &&
-             data.text is string && data.text.size() > 0 && data.text.size() < 1000;
+             data.text is string && data.text.size() > 0 && data.text.size() < 1000 &&
+             (!('userName' in data) || data.userName == null || data.userName is string) &&
+             (!('userPic' in data) || data.userPic == null || data.userPic is string);
     }
 
     // ===============================================================
@@ -123,17 +126,17 @@ service cloud.firestore {
 
     match /posts/{postId} {
       allow read: if isAuthenticated();
-      allow create: if isAdmin() && isValidPost(request.resource.data);
+      allow create: if isUserAdmin(request.auth.uid) && isValidPost(request.resource.data);
       allow update: if isAuthenticated() && (
-        (isAdmin() && isValidPost(request.resource.data)) ||
+        (isUserAdmin(request.auth.uid) && isValidPost(request.resource.data)) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount']))
       );
-      allow delete: if isAdmin();
+      allow delete: if isUserAdmin(request.auth.uid);
 
       match /comments/{commentId} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated() && isValidComment(request.resource.data);
-        allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+        allow delete: if isUserAdmin(request.auth.uid) || (isAuthenticated() && resource.data.userId == request.auth.uid);
       }
 
       match /likes/{userId} {
